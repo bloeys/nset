@@ -41,13 +41,34 @@ func (n *NLookup[T]) Remove(x T) {
 }
 
 func (n *NLookup[T]) Contains(x T) bool {
+	return n.isSet(x)
+}
 
-	unitIndex := n.GetStorageUnitIndex(x)
-	if unitIndex >= n.Size() {
-		return false
+func (n *NLookup[T]) ContainsAny(values ...T) bool {
+
+	for _, x := range values {
+		if n.isSet(x) {
+			return true
+		}
 	}
 
-	return n.Data[unitIndex]&(1<<x%StorageTypeBits) != 0
+	return false
+}
+
+func (n *NLookup[T]) ContainsAll(values ...T) bool {
+
+	for _, x := range values {
+		if !n.isSet(x) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (n *NLookup[T]) isSet(x T) bool {
+	unitIndex := n.GetStorageUnitIndex(x)
+	return unitIndex < n.Size() && n.Data[unitIndex]&(1<<(x%StorageTypeBits)) != 0
 }
 
 func (n *NLookup[T]) GetStorageUnitIndex(x T) uint64 {
@@ -101,7 +122,9 @@ func NewNLookup[T IntsIf]() NLookup[T] {
 	}
 }
 
-func NewNLookupWithSize[T IntsIf](largestNum T) NLookup[T] {
+//NewNLookupWithMax creates a nlookup that already has capacity to hold till at least largestNum without resizing.
+//Note that this is NOT the count of elements you want to store, instead you input the largest value you want to store. You can store larger values as well.
+func NewNLookupWithMax[T IntsIf](largestNum T) NLookup[T] {
 	return NLookup[T]{
 		Data: make([]StorageType, largestNum/StorageTypeBits+1),
 	}
