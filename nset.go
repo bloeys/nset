@@ -38,8 +38,13 @@ type NSet[T IntsIf] struct {
 
 func (n *NSet[T]) Add(x T) {
 
-	bucket := n.GetBucketFromValue(x)
-	unitIndex := n.GetStorageUnitIndex(x)
+	//NOTE: The inlines here improve addition times by a good amount (several seconds)
+	//NOTE: inline of n.GetBucketFromValue(x)
+	bucket := &n.Buckets[BucketType(x>>n.shiftAmount)]
+
+	//NOTE: This is an inline of n.GetStorageUnitIndex(x)
+	unitIndex := uint32(((x << BucketIndexingBits) >> BucketIndexingBits) / StorageTypeBits)
+
 	if unitIndex >= bucket.StorageUnitCount {
 
 		storageUnitsToAdd := unitIndex - bucket.StorageUnitCount + 1
@@ -49,7 +54,8 @@ func (n *NSet[T]) Add(x T) {
 		bucket.StorageUnitCount += storageUnitsToAdd
 	}
 
-	bucket.Data[unitIndex] |= n.GetBitMask(x)
+	//NOTE: Inline of n.GetBitMask(x)
+	bucket.Data[unitIndex] |= 1 << (((x << BucketIndexingBits) >> BucketIndexingBits) % StorageTypeBits)
 }
 
 func (n *NSet[T]) Remove(x T) {
@@ -109,8 +115,7 @@ func (n *NSet[T]) GetStorageUnitIndex(x T) uint32 {
 	//unit and bit mask. This is done by shifting left by 4 which removes the top 'n' bits,
 	//then shifting right by 4 which puts the bits back to their original place, but now
 	//the top 'n' bits are zeros.
-	return uint32(
-		((x << BucketIndexingBits) >> BucketIndexingBits) / StorageTypeBits)
+	return uint32(((x << BucketIndexingBits) >> BucketIndexingBits) / StorageTypeBits)
 }
 
 func (n *NSet[T]) GetBitMask(x T) StorageType {
