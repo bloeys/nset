@@ -1,3 +1,3 @@
-module github.com/bloeys/nlookup
+module github.com/bloeys/nset
 
 go 1.18

@@ -1,36 +1,41 @@
-package nlookup
+package nset
 
 import (
 	"fmt"
 	"strings"
 )
 
-var _ fmt.Stringer = &NLookup[uint]{}
+var _ fmt.Stringer = &NSet[uint8]{}
 
 type StorageType uint64
 
 const StorageTypeBits = 64
 
+//IntsIf is limited to uint32 because we can store ALL 4 Billion uint32 numbers
+//in 256MB with NSet (instead of the normal 16GB for an array of all uint32s).
+//But if we allow uint64 (or int, since int can be 64-bit) users can easily put a big 64-bit number and use more RAM than maybe Google and crash.
 type IntsIf interface {
-	uint | uint8 | uint16 | uint32 | uint64
+	uint8 | uint16 | uint32
 }
 
-type NLookup[T IntsIf] struct {
-	Data []StorageType
+type NSet[T IntsIf] struct {
+	Data             []StorageType
+	StorageUnitCount uint64
 }
 
-func (n *NLookup[T]) Add(x T) {
+func (n *NSet[T]) Add(x T) {
 
 	unitIndex := n.GetStorageUnitIndex(x)
 	if unitIndex >= n.Size() {
 		storageUnitsToAdd := unitIndex - n.Size() + 1
 		n.Data = append(n.Data, make([]StorageType, storageUnitsToAdd)...)
+		n.StorageUnitCount += storageUnitsToAdd
 	}
 
 	n.Data[unitIndex] |= 1 << (x % StorageTypeBits)
 }
 
-func (n *NLookup[T]) Remove(x T) {
+func (n *NSet[T]) Remove(x T) {
 
 	unitIndex := n.GetStorageUnitIndex(x)
 	if unitIndex >= n.Size() {
@@ -40,11 +45,11 @@ func (n *NLookup[T]) Remove(x T) {
 	n.Data[unitIndex] ^= 1 << (x % StorageTypeBits)
 }
 
-func (n *NLookup[T]) Contains(x T) bool {
+func (n *NSet[T]) Contains(x T) bool {
 	return n.isSet(x)
 }
 
-func (n *NLookup[T]) ContainsAny(values ...T) bool {
+func (n *NSet[T]) ContainsAny(values ...T) bool {
 
 	for _, x := range values {
 		if n.isSet(x) {
@@ -55,7 +60,7 @@ func (n *NLookup[T]) ContainsAny(values ...T) bool {
 	return false
 }
 
-func (n *NLookup[T]) ContainsAll(values ...T) bool {
+func (n *NSet[T]) ContainsAll(values ...T) bool {
 
 	for _, x := range values {
 		if !n.isSet(x) {
@@ -66,30 +71,30 @@ func (n *NLookup[T]) ContainsAll(values ...T) bool {
 	return true
 }
 
-func (n *NLookup[T]) isSet(x T) bool {
+func (n *NSet[T]) isSet(x T) bool {
 	unitIndex := n.GetStorageUnitIndex(x)
 	return unitIndex < n.Size() && n.Data[unitIndex]&(1<<(x%StorageTypeBits)) != 0
 }
 
-func (n *NLookup[T]) GetStorageUnitIndex(x T) uint64 {
+func (n *NSet[T]) GetStorageUnitIndex(x T) uint64 {
 	return uint64(x) / StorageTypeBits
 }
 
-func (n *NLookup[T]) GetStorageUnit(x T) StorageType {
+func (n *NSet[T]) GetStorageUnit(x T) StorageType {
 	return n.Data[x/StorageTypeBits]
 }
 
-//Size returns len(n.Data)
-func (n *NLookup[T]) Size() uint64 {
-	return uint64(len(n.Data))
+//Size returns the number of storage units
+func (n *NSet[T]) Size() uint64 {
+	return n.StorageUnitCount
 }
 
-func (n *NLookup[T]) ElementCap() uint64 {
+func (n *NSet[T]) ElementCap() uint64 {
 	return uint64(len(n.Data) * StorageTypeBits)
 }
 
 //String returns a string of the storage as bytes separated by spaces. A comma is between each storage unit
-func (n *NLookup[T]) String() string {
+func (n *NSet[T]) String() string {
 
 	b := strings.Builder{}
 	b.Grow(len(n.Data)*StorageTypeBits + len(n.Data)*2)
@@ -115,17 +120,19 @@ func (n *NLookup[T]) String() string {
 	return b.String()
 }
 
-func NewNLookup[T IntsIf]() NLookup[T] {
+func NewNSet[T IntsIf]() NSet[T] {
 
-	return NLookup[T]{
-		Data: make([]StorageType, 1),
+	return NSet[T]{
+		Data:             make([]StorageType, 1),
+		StorageUnitCount: 1,
 	}
 }
 
-//NewNLookupWithMax creates a nlookup that already has capacity to hold till at least largestNum without resizing.
+//NewNSetWithMax creates a set that already has capacity to hold till at least largestNum without resizing.
 //Note that this is NOT the count of elements you want to store, instead you input the largest value you want to store. You can store larger values as well.
-func NewNLookupWithMax[T IntsIf](largestNum T) NLookup[T] {
-	return NLookup[T]{
-		Data: make([]StorageType, largestNum/StorageTypeBits+1),
+func NewNSetWithMax[T IntsIf](largestNum T) NSet[T] {
+	return NSet[T]{
+		Data:             make([]StorageType, largestNum/StorageTypeBits+1),
+		StorageUnitCount: uint64(largestNum/StorageTypeBits + 1),
 	}
 }
