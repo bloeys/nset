@@ -12,6 +12,8 @@ get intersections.
   - [When to use NSet](#when-to-use-nset)
   - [Usage](#usage)
   - [Benchmarks](#benchmarks)
+  - [How NSet works](#how-nset-works)
+    - [A note on memory usage](#a-note-on-memory-usage)
 
 ## When to use NSet
 
@@ -101,3 +103,20 @@ myMap := make(map[uint16], 100)
 ```
 
 Map benefits from sizing while NSet isn't affected, but in both cases NSet remains faster.
+
+## How NSet works
+
+NSet works by using a single bit to indicate whether a number exists or not.
+These bit flags are stored as an array of uint64, where the `0` uses the first bit of the first uint64,
+`1` uses the second bit of the first uint64 in the array and so on. So each uint64 represents 64 numbers.
+
+Now assume we have added the numbers `1`, `2` and `3`, then we add number `65`. The first 3 numbers fit in the first uint64 integer of the array, but `65` doesn't
+so at this point the array is expanded until we have enough 65 bits or more, so 1 more integer is added and the second bit of the second integer is set.
+
+### A note on memory usage
+
+This setup gives us very high add/get/remove efficiency, but in some cases can produce worse memory usage. For example, if you make an empty set
+then add `5000` NSet will be forced to create 78 integers and then set one bit on the last integer. So if you have a few huge numbers (a number in the millions or billions) then you will be using more memory than a hash map or an array.
+
+But if your numbers are smaller and/or closer together then you will have **a lot better** memory efficiency. An array storing all
+4 billion uint32 integers will use 16GBs of memory, while NSet with all 4 billion will only use 256MB.
