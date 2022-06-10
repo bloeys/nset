@@ -20,7 +20,7 @@ get intersections.
 Maybe you want a set implementation? Then this is one, but there are other reasons.
 
 If you are using your hash maps/arrays like sets or do a lot of checks to see if items exists in your hash maps then NSet might make sense.
-In such cases NSet makes sense because it is both faster and more memory efficient. You can see more about this in the Benchmarks section.
+In such cases NSet makes sense because it is both faster and more memory efficient. You can see more about this in the [Benchmarks](#benchmarks) section.
 
 Here are some examples where you might want to consider NSet:
 
