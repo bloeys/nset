@@ -2,14 +2,20 @@ package nset
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
 var _ fmt.Stringer = &NSet[uint8]{}
 
+type BucketType uint8
 type StorageType uint64
 
-const StorageTypeBits = 64
+const (
+	BucketCount        = 128
+	StorageTypeBits    = 64
+	BucketIndexingBits = 7
+)
 
 //IntsIf is limited to uint32 because we can store ALL 4 Billion uint32 numbers
 //in 256MB with NSet (instead of the normal 16GB for an array of all uint32s).
@@ -18,31 +24,43 @@ type IntsIf interface {
 	uint8 | uint16 | uint32
 }
 
-type NSet[T IntsIf] struct {
+type Bucket struct {
 	Data             []StorageType
-	StorageUnitCount uint64
+	StorageUnitCount uint32
+}
+
+type NSet[T IntsIf] struct {
+	Buckets [BucketCount]Bucket
+	//StorageUnitCount the number of uint64 integers that are used to indicate presence of numbers in the set
+	StorageUnitCount uint32
+	shiftAmount      T
 }
 
 func (n *NSet[T]) Add(x T) {
 
+	bucket := n.GetBucketFromValue(x)
 	unitIndex := n.GetStorageUnitIndex(x)
-	if unitIndex >= n.Size() {
-		storageUnitsToAdd := unitIndex - n.Size() + 1
-		n.Data = append(n.Data, make([]StorageType, storageUnitsToAdd)...)
+	if unitIndex >= bucket.StorageUnitCount {
+
+		storageUnitsToAdd := unitIndex - bucket.StorageUnitCount + 1
+		bucket.Data = append(bucket.Data, make([]StorageType, storageUnitsToAdd)...)
+
 		n.StorageUnitCount += storageUnitsToAdd
+		bucket.StorageUnitCount += storageUnitsToAdd
 	}
 
-	n.Data[unitIndex] |= 1 << (x % StorageTypeBits)
+	bucket.Data[unitIndex] |= n.GetBitMask(x)
 }
 
 func (n *NSet[T]) Remove(x T) {
 
+	b := n.GetBucketFromValue(x)
 	unitIndex := n.GetStorageUnitIndex(x)
-	if unitIndex >= n.Size() {
+	if unitIndex >= b.StorageUnitCount {
 		return
 	}
 
-	n.Data[unitIndex] ^= 1 << (x % StorageTypeBits)
+	b.Data[unitIndex] ^= n.GetBitMask(x)
 }
 
 func (n *NSet[T]) Contains(x T) bool {
@@ -72,67 +90,77 @@ func (n *NSet[T]) ContainsAll(values ...T) bool {
 }
 
 func (n *NSet[T]) isSet(x T) bool {
+	b := n.GetBucketFromValue(x)
 	unitIndex := n.GetStorageUnitIndex(x)
-	return unitIndex < n.Size() && n.Data[unitIndex]&(1<<(x%StorageTypeBits)) != 0
+	return unitIndex < b.StorageUnitCount && b.Data[unitIndex]&n.GetBitMask(x) != 0
 }
 
-func (n *NSet[T]) GetStorageUnitIndex(x T) uint64 {
-	return uint64(x) / StorageTypeBits
+func (n *NSet[T]) GetBucketFromValue(x T) *Bucket {
+	return &n.Buckets[n.GetBucketIndex(x)]
 }
 
-func (n *NSet[T]) GetStorageUnit(x T) StorageType {
-	return n.Data[x/StorageTypeBits]
+func (n *NSet[T]) GetBucketIndex(x T) BucketType {
+	//Use the top 'n' bits as the index to the bucket
+	return BucketType(x >> n.shiftAmount)
 }
 
-//Size returns the number of storage units
-func (n *NSet[T]) Size() uint64 {
-	return n.StorageUnitCount
+func (n *NSet[T]) GetStorageUnitIndex(x T) uint32 {
+	//The top 'n' bits are used to select the bucket so we need to remove them before finding storage
+	//unit and bit mask. This is done by shifting left by 4 which removes the top 'n' bits,
+	//then shifting right by 4 which puts the bits back to their original place, but now
+	//the top 'n' bits are zeros.
+	return uint32(
+		((x << BucketIndexingBits) >> BucketIndexingBits) / StorageTypeBits)
 }
 
-func (n *NSet[T]) ElementCap() uint64 {
-	return uint64(len(n.Data) * StorageTypeBits)
+func (n *NSet[T]) GetBitMask(x T) StorageType {
+	//Removes top 'n' bits
+	return 1 << (((x << BucketIndexingBits) >> BucketIndexingBits) % StorageTypeBits)
 }
 
 //String returns a string of the storage as bytes separated by spaces. A comma is between each storage unit
 func (n *NSet[T]) String() string {
 
 	b := strings.Builder{}
-	b.Grow(len(n.Data)*StorageTypeBits + len(n.Data)*2)
+	b.Grow(int(n.StorageUnitCount*StorageTypeBits + n.StorageUnitCount*2))
 
-	for i := 0; i < len(n.Data); i++ {
+	for i := 0; i < len(n.Buckets); i++ {
 
-		x := n.Data[i]
-		shiftAmount := StorageTypeBits - 8
-		for shiftAmount >= 0 {
+		bucket := &n.Buckets[i]
+		for j := 0; j < len(bucket.Data); j++ {
 
-			byteToShow := uint8(x >> shiftAmount)
-			if shiftAmount > 0 {
-				b.WriteString(fmt.Sprintf("%08b ", byteToShow))
-			} else {
-				b.WriteString(fmt.Sprintf("%08b", byteToShow))
+			x := bucket.Data[j]
+			shiftAmount := StorageTypeBits - 8
+			for shiftAmount >= 0 {
+
+				byteToShow := uint8(x >> shiftAmount)
+				if shiftAmount > 0 {
+					b.WriteString(fmt.Sprintf("%08b ", byteToShow))
+				} else {
+					b.WriteString(fmt.Sprintf("%08b", byteToShow))
+				}
+
+				shiftAmount -= 8
 			}
-
-			shiftAmount -= 8
+			b.WriteString(", ")
 		}
-		b.WriteString(", ")
 	}
 
 	return b.String()
 }
 
-func NewNSet[T IntsIf]() NSet[T] {
+func NewNSet[T IntsIf]() *NSet[T] {
 
-	return NSet[T]{
-		Data:             make([]StorageType, 1),
-		StorageUnitCount: 1,
+	n := &NSet[T]{
+		Buckets:          [BucketCount]Bucket{},
+		StorageUnitCount: 0,
+		//We use this to either extract or clear the top 'n' bits, as they are used to select the bucket
+		shiftAmount: T(reflect.TypeOf(*new(T)).Bits()) - BucketIndexingBits,
 	}
-}
 
-//NewNSetWithMax creates a set that already has capacity to hold till at least largestNum without resizing.
-//Note that this is NOT the count of elements you want to store, instead you input the largest value you want to store. You can store larger values as well.
-func NewNSetWithMax[T IntsIf](largestNum T) NSet[T] {
-	return NSet[T]{
-		Data:             make([]StorageType, largestNum/StorageTypeBits+1),
-		StorageUnitCount: uint64(largestNum/StorageTypeBits + 1),
+	for i := 0; i < len(n.Buckets); i++ {
+		n.Buckets[i].Data = make([]StorageType, 0)
 	}
+
+	return n
 }
