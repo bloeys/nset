@@ -149,6 +149,25 @@ func (n *NSet[T]) String() string {
 	return b.String()
 }
 
+func (n *NSet[T]) Copy() *NSet[T] {
+
+	newSet := NewNSet[T]()
+	for i := 0; i < len(n.Buckets); i++ {
+
+		b := &n.Buckets[i]
+		newB := &newSet.Buckets[i]
+
+		newB.StorageUnitCount = b.StorageUnitCount
+		newB.Data = make([]StorageType, len(b.Data))
+
+		copy(newB.Data, b.Data)
+	}
+
+	newSet.StorageUnitCount = n.StorageUnitCount
+	return newSet
+
+}
+
 func NewNSet[T IntsIf]() *NSet[T] {
 
 	n := &NSet[T]{

@@ -34,8 +34,11 @@ func TestNSet(t *testing.T) {
 	IsEq(t, nset.BucketCount-1, n.GetBucketIndex(math.MaxUint32))
 	IsEq(t, math.MaxUint32/64/nset.BucketCount, n.GetStorageUnitIndex(math.MaxUint32))
 
+	nCopy := n.Copy()
 	n.Remove(1)
-	AllTrue(t, n.Contains(0), n.Contains(63), !n.Contains(1))
+
+	AllTrue(t, n.Contains(0), n.Contains(63), !n.Contains(1), nCopy.ContainsAll(0, 1, 63, math.MaxUint32))
+
 }
 
 func TestNSetFullRange(t *testing.T) {
