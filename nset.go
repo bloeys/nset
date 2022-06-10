@@ -38,13 +38,9 @@ type NSet[T IntsIf] struct {
 
 func (n *NSet[T]) Add(x T) {
 
-	//NOTE: The inlines here improve addition times by a good amount (several seconds)
-	//NOTE: inline of n.GetBucketFromValue(x)
-	bucket := &n.Buckets[BucketType(x>>n.shiftAmount)]
+	bucket := n.GetBucketFromValue(x)
 
-	//NOTE: This is an inline of n.GetStorageUnitIndex(x)
-	unitIndex := uint32(((x << BucketIndexingBits) >> BucketIndexingBits) / StorageTypeBits)
-
+	unitIndex := n.GetStorageUnitIndex(x)
 	if unitIndex >= bucket.StorageUnitCount {
 
 		storageUnitsToAdd := unitIndex - bucket.StorageUnitCount + 1
@@ -54,8 +50,7 @@ func (n *NSet[T]) Add(x T) {
 		bucket.StorageUnitCount += storageUnitsToAdd
 	}
 
-	//NOTE: Inline of n.GetBitMask(x)
-	bucket.Data[unitIndex] |= 1 << (((x << BucketIndexingBits) >> BucketIndexingBits) % StorageTypeBits)
+	bucket.Data[unitIndex] |= n.GetBitMask(x)
 }
 
 func (n *NSet[T]) Remove(x T) {
