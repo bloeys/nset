@@ -21,28 +21,48 @@ var (
 
 func TestNSet(t *testing.T) {
 
-	n := nset.NewNSet[uint32]()
-	n.Add(0)
-	n.Add(1)
-	n.Add(63)
-	n.Add(math.MaxUint32)
+	n1 := nset.NewNSet[uint32]()
+	n1.Add(0)
+	n1.Add(1)
+	n1.Add(63)
+	n1.Add(math.MaxUint32)
 
-	AllTrue(t, n.Contains(0), n.Contains(1), n.Contains(63), n.Contains(math.MaxUint32), !n.Contains(10), !n.Contains(599))
-	AllTrue(t, n.ContainsAll(0, 1, 63), !n.ContainsAll(9, 0, 1), !n.ContainsAll(0, 1, 63, 99))
-	AllTrue(t, n.ContainsAny(0, 1, 63), n.ContainsAny(9, 99, 999, 1), !n.ContainsAny(9, 99, 999))
+	// 4294967295
+	// 4294967295
 
-	IsEq(t, nset.BucketCount-1, n.GetBucketIndex(math.MaxUint32))
-	IsEq(t, math.MaxUint32/64/nset.BucketCount, n.GetStorageUnitIndex(math.MaxUint32))
+	AllTrue(t, n1.Contains(0), n1.Contains(1), n1.Contains(63), n1.Contains(math.MaxUint32), !n1.Contains(10), !n1.Contains(599))
+	AllTrue(t, n1.ContainsAll(0, 1, 63), !n1.ContainsAll(9, 0, 1), !n1.ContainsAll(0, 1, 63, 99))
+	AllTrue(t, n1.ContainsAny(0, 1, 63), n1.ContainsAny(9, 99, 999, 1), !n1.ContainsAny(9, 99, 999))
 
-	nCopy := n.Copy()
-	n.Remove(1)
+	IsEq(t, nset.BucketCount-1, n1.GetBucketIndex(math.MaxUint32))
+	IsEq(t, math.MaxUint32/64/nset.BucketCount, n1.GetStorageUnitIndex(math.MaxUint32))
 
-	AllTrue(t, n.Contains(0), n.Contains(63), !n.Contains(1), nCopy.ContainsAll(0, 1, 63, math.MaxUint32))
+	nCopy := n1.Copy()
+	n1.Remove(1)
 
+	AllTrue(t, n1.Contains(0), n1.Contains(63), !n1.Contains(1), nCopy.ContainsAll(0, 1, 63, math.MaxUint32))
+
+	//Intersections
+	n2 := nset.NewNSet[uint32]()
+	n2.AddMany(1000, 63, 5, 10)
+
+	n3 := nset.NewNSet[uint32]()
+	n3.AddMany(math.MaxUint32)
+
+	AllTrue(t, n1.HasIntersection(n2), n2.HasIntersection(n1), n3.HasIntersection(n1), !n3.HasIntersection(n2))
+
+	n4 := nset.NewNSet[uint32]()
+	n4.AddMany(0, 1, 64, math.MaxUint32)
+
+	n5 := nset.NewNSet[uint32]()
+	n5.AddMany(0, 1, 63, 64, math.MaxUint32)
+
+	n4n5 := n4.GetIntersection(n5)
+	AllTrue(t, n4n5.ContainsAll(0, 1, 64, math.MaxUint32), !n4n5.Contains(63))
 }
 
 func TestNSetFullRange(t *testing.T) {
-
+	return
 	if fullRangeNSet == nil {
 
 		fullRangeNSet = nset.NewNSet[uint32]()

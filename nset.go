@@ -53,6 +53,28 @@ func (n *NSet[T]) Add(x T) {
 	bucket.Data[unitIndex] |= n.GetBitMask(x)
 }
 
+func (n *NSet[T]) AddMany(values ...T) {
+
+	for i := 0; i < len(values); i++ {
+
+		x := values[i]
+		bucket := n.GetBucketFromValue(x)
+
+		unitIndex := n.GetStorageUnitIndex(x)
+		if unitIndex >= bucket.StorageUnitCount {
+
+			storageUnitsToAdd := unitIndex - bucket.StorageUnitCount + 1
+			bucket.Data = append(bucket.Data, make([]StorageType, storageUnitsToAdd)...)
+
+			n.StorageUnitCount += storageUnitsToAdd
+			bucket.StorageUnitCount += storageUnitsToAdd
+		}
+
+		bucket.Data[unitIndex] |= n.GetBitMask(x)
+	}
+
+}
+
 func (n *NSet[T]) Remove(x T) {
 
 	b := n.GetBucketFromValue(x)
@@ -116,6 +138,61 @@ func (n *NSet[T]) GetStorageUnitIndex(x T) uint32 {
 func (n *NSet[T]) GetBitMask(x T) StorageType {
 	//Removes top 'n' bits
 	return 1 << (((x << BucketIndexingBits) >> BucketIndexingBits) % StorageTypeBits)
+}
+
+func (n *NSet[T]) GetIntersection(otherSet *NSet[T]) *NSet[T] {
+
+	outSet := NewNSet[T]()
+
+	for i := 0; i < BucketCount; i++ {
+
+		b1 := &n.Buckets[i]
+		b2 := &otherSet.Buckets[i]
+
+		//bucketIndexBits are the bits removed from the original value to use for bucket indexing.
+		//We will use this to restore the original value 'x' once an intersection is detected
+		bucketIndexBits := T(i << n.shiftAmount)
+		for j := 0; j < len(b1.Data) && j < len(b2.Data); j++ {
+
+			if b1.Data[j]&b2.Data[j] == 0 {
+				continue
+			}
+
+			mask := StorageType(1 << 0)                                     //This will be used to check set bits. Numbers will be reconstructed only for set bits
+			commonBits := b1.Data[j] & b2.Data[j]                           //Bits that are set on both storage units (aka the intersection)
+			firstStorageUnitValue := T(j*StorageTypeBits) | bucketIndexBits //StorageUnitIndex = noBucketBitsX / StorageTypeBits. So: noBucketBitsX = StorageUnitIndex * StorageTypeBits; Then: x = noBucketBitsX | bucketIndexBits
+			for k := T(0); k < StorageTypeBits; k++ {
+
+				if commonBits&mask > 0 {
+					outSet.Add(firstStorageUnitValue + k)
+					// fmt.Printf("Bucket=%d, Storage unit=%d, bitPos=%d, value=%d\n", i, j, k, firstStorageUnitValue+k)
+				}
+
+				mask <<= 1
+			}
+
+		}
+	}
+
+	return outSet
+}
+
+func (n *NSet[T]) HasIntersection(otherSet *NSet[T]) bool {
+
+	for i := 0; i < len(n.Buckets); i++ {
+
+		b1 := &n.Buckets[i]
+		b2 := &otherSet.Buckets[i]
+
+		for j := 0; j < len(b1.Data) && j < len(b2.Data); j++ {
+
+			if b1.Data[j]&b2.Data[j] > 0 {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 //String returns a string of the storage as bytes separated by spaces. A comma is between each storage unit
