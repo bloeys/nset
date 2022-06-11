@@ -61,6 +61,7 @@ To install run `go get github.com/bloeys/nset`
 Then usage is very simple:
 
 ```go
+//Basic
 mySet := nset.NewNSet[uint32]()
 
 mySet.Add(0)
@@ -74,6 +75,22 @@ if mySet.Contains(5) {
 
 mySet.Remove(4)
 
+// Intersections
+myOtherSet := nset.NewNSet[uint32]()
+myOtherSet.AddMany(0, 1, 2, 4, 14)
+
+println("There is intersection:", myOtherSet.HasIntersection(mySet))    //True
+
+intersection := mySet.GetIntersection(myOtherSet)
+println("The intersection contains 300:", intersection.Contains(300))  //False
+println("The intersection contains 0 and 4:", intersection.ContainsAll(0, 4))   //True
+
+//Unions
+unionOfBothSets := nset.UnionSets(mySet, myOtherSet)
+println(unionOfBothSets.ContainsAll(0, 1, 2, 4, 14, 256, 300))  //True
+
+myOtherSet.Union(mySet) //This will change 'myOtherSet'
+println(myOtherSet.ContainsAll(0, 1, 2, 4, 14, 256, 300))  //True
 ```
 
 ## Benchmarks
