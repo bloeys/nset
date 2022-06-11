@@ -55,7 +55,11 @@ func TestNSet(t *testing.T) {
 	n5.AddMany(0, 1, 63, 64, math.MaxUint32)
 
 	n4n5 := n4.GetIntersection(n5)
-	AllTrue(t, n4n5.ContainsAll(0, 1, 64, math.MaxUint32), !n4n5.Contains(63))
+
+	n4n5Twin := nset.NewNSet[uint32]()
+	n4n5Twin.AddMany(0, 1, 64, math.MaxUint32)
+
+	AllTrue(t, n4n5.ContainsAll(0, 1, 64, math.MaxUint32), !n4n5.Contains(63), n4n5Twin.IsEq(n4n5))
 
 	//Union
 	n6 := nset.NewNSet[uint32]()
@@ -83,6 +87,13 @@ func TestNSet(t *testing.T) {
 
 	n6.Union(n7)
 	AllTrue(t, n6.IsEq(n7))
+
+	//GetAllElements
+	n8 := nset.NewNSet[uint32]()
+	n8.AddMany(0, 1, 55, 1000, 10000)
+
+	n8Elements := n8.GetAllElements()
+	AllTrue(t, len(n8Elements) == 5, n8Elements[0] == 0, n8Elements[1] == 1, n8Elements[2] == 55, n8Elements[3] == 1000, n8Elements[4] == 10000)
 }
 
 func TestNSetFullRange(t *testing.T) {
@@ -434,4 +445,117 @@ func BenchmarkMapIsEq(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		mapsAreEq(m1, m2)
 	}
+}
+
+func BenchmarkNSetGetIntersection(b *testing.B) {
+
+	b.StopTimer()
+	s1 := nset.NewNSet[uint32]()
+	s2 := nset.NewNSet[uint32]()
+	for i := uint32(0); i < maxBenchSize; i++ {
+		s1.Add(i)
+		s2.Add(i)
+	}
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		s1.GetIntersection(s2)
+	}
+}
+
+var elementCount int
+
+func BenchmarkNSetGetAllElements(b *testing.B) {
+
+	b.StopTimer()
+
+	s1 := nset.NewNSet[uint32]()
+	for i := uint32(0); i < 1000_000; i++ {
+		s1.Add(i)
+	}
+	b.StartTimer()
+
+	var elements []uint32
+	for i := 0; i < b.N; i++ {
+		elements = s1.GetAllElements()
+	}
+
+	elementCount = len(elements)
+}
+
+func BenchmarkMapGetAllElements(b *testing.B) {
+
+	b.StopTimer()
+
+	m1 := map[uint32]struct{}{}
+	for i := uint32(0); i < 1000_000; i++ {
+		m1[i] = struct{}{}
+	}
+	b.StartTimer()
+
+	getElementsFunc := func(m map[uint32]struct{}) []uint32 {
+
+		e := make([]uint32, 0, len(m))
+		for k := range m {
+			e = append(e, k)
+		}
+
+		return e
+	}
+
+	var elements []uint32
+	for i := 0; i < b.N; i++ {
+		elements = getElementsFunc(m1)
+	}
+
+	elementCount = len(elements)
+}
+
+func BenchmarkNSetGetAllElementsRand(b *testing.B) {
+
+	b.StopTimer()
+
+	rand.Seed(RandSeed)
+	s1 := nset.NewNSet[uint32]()
+	for i := uint32(0); i < 1000_000; i++ {
+		s1.Add(rand.Uint32())
+	}
+	b.StartTimer()
+
+	var elements []uint32
+	for i := 0; i < b.N; i++ {
+		elements = s1.GetAllElements()
+	}
+
+	elementCount = len(elements)
+}
+
+func BenchmarkMapGetAllElementsRand(b *testing.B) {
+
+	b.StopTimer()
+
+	rand.Seed(RandSeed)
+
+	m1 := map[uint32]struct{}{}
+	for i := uint32(0); i < 1000_000; i++ {
+		m1[rand.Uint32()] = struct{}{}
+	}
+
+	getElementsFunc := func(m map[uint32]struct{}) []uint32 {
+
+		e := make([]uint32, 0, len(m))
+		for k := range m {
+			e = append(e, k)
+		}
+
+		return e
+	}
+	b.StartTimer()
+
+	var elements []uint32
+	for i := 0; i < b.N; i++ {
+		elements = getElementsFunc(m1)
+	}
+
+	elementCount = len(elements)
 }

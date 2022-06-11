@@ -134,9 +134,18 @@ Map benefits from sizing while NSet isn't affected, but in both cases NSet remai
 
 Another case where NSet really shines is checking if two sets are equal.
 Below is a benchmark that checks whether two NSets/maps with 10 Million elements in each are equal (They are equal, which is the worst case).
+Here NSet finishes in `0.1ms` but Map takes almost a second with `813ms`.
 ![Benchmarking IsEq with 10,000,000 elements](./.res/bench-is-equal-10-million.png)
 
-Here NSet finishes in `0.1ms` but Map takes almost a second with `813ms`.
+Next we have `GetAllElements`, which simply returns an array of all the elements of NSet/Map (note this is dangerous in NSet. See [Memory characteristics](#memory-characteristics)).
+![Benchmarking GetAllElements with 1,000,000 elements](.res/bench-getAllElements-1-million.png)
+
+With `GetAllElements` NSet is faster when its elements are closer together (or you have many numbers), but gets a lot slower when
+dealing with a few random numbers. This is because you might get two numbers like `1` and `1_000_000` which NSet
+will store in two far away places with a lot of nothing in between. In a map these will be stored close together.
+
+With 1M ordered elements NSet takes `~2ms` and map `~9ms`, but with a random 1M elements NSet takes `~129ms`
+while map takes `~9ms`. Map scales with the amount of elements, while NSet is affected by number distribution as well.
 
 ## How NSet works
 

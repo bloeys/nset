@@ -2,6 +2,7 @@ package nset
 
 import (
 	"fmt"
+	"math/bits"
 	"reflect"
 	"strings"
 )
@@ -18,7 +19,7 @@ const (
 )
 
 //IntsIf is limited to uint32 because we can store ALL 4 Billion uint32 numbers
-//in 256MB with NSet (instead of the normal 16GB for an array of all uint32s).
+//in 512MB with NSet (instead of the normal 16GB for an array of all uint32s).
 //But if we allow uint64 (or int, since int can be 64-bit) users can easily put a big 64-bit number and use more RAM than maybe Google and crash.
 type IntsIf interface {
 	uint8 | uint16 | uint32
@@ -171,32 +172,69 @@ func (n *NSet[T]) GetIntersection(otherSet *NSet[T]) *NSet[T] {
 		b1 := &n.Buckets[i]
 		b2 := &otherSet.Buckets[i]
 
-		//bucketIndexBits are the bits removed from the original value to use for bucket indexing.
-		//We will use this to restore the original value 'x' once an intersection is detected
-		bucketIndexBits := T(i << n.shiftAmount)
-		for j := 0; j < len(b1.Data) && j < len(b2.Data); j++ {
+		newB := &outSet.Buckets[i]
+		for j := uint32(0); j < b1.StorageUnitCount && j < b2.StorageUnitCount; j++ {
 
 			if b1.Data[j]&b2.Data[j] == 0 {
 				continue
 			}
 
-			mask := StorageType(1 << 0)                                     //This will be used to check set bits. Numbers will be reconstructed only for set bits
-			commonBits := b1.Data[j] & b2.Data[j]                           //Bits that are set on both storage units (aka the intersection)
-			firstStorageUnitValue := T(j*StorageTypeBits) | bucketIndexBits //StorageUnitIndex = noBucketBitsX / StorageTypeBits. So: noBucketBitsX = StorageUnitIndex * StorageTypeBits; Then: x = noBucketBitsX | bucketIndexBits
-			for k := T(0); k < StorageTypeBits; k++ {
+			if newB.StorageUnitCount < j+1 {
+				storageUnitsToAdd := j + 1 - newB.StorageUnitCount
+				newB.Data = append(newB.Data, make([]StorageType, storageUnitsToAdd)...)
 
-				if commonBits&mask > 0 {
-					outSet.Add(firstStorageUnitValue + k)
-					// fmt.Printf("Bucket=%d, Storage unit=%d, bitPos=%d, value=%d\n", i, j, k, firstStorageUnitValue+k)
+				newB.StorageUnitCount += storageUnitsToAdd
+				outSet.StorageUnitCount += storageUnitsToAdd
+			}
+
+			newB.Data[j] = b1.Data[j] & b2.Data[j]
+		}
+	}
+
+	return outSet
+}
+
+//GetAllElements returns all the added numbers added to NSet.
+//NOTE: Be careful with this if you have a lot of elements in NSet because NSet is compressed while the returned array is not.
+//In the worst case (all uint32s stored) the returned array will be ~4.2 billion elements and will use 16+ GBs of RAM.
+func (n *NSet[T]) GetAllElements() []T {
+
+	elements := make([]T, 0)
+
+	for i := 0; i < BucketCount; i++ {
+
+		//bucketIndexBits are the bits removed from the original value to use for bucket indexing.
+		//We will use this to restore the original value 'x' once an intersection is detected
+		bucketIndexBits := T(i << n.shiftAmount)
+
+		b1 := &n.Buckets[i]
+		for j := 0; j < len(b1.Data); j++ {
+
+			storageUnit := b1.Data[j]
+			onesCount := bits.OnesCount64(uint64(storageUnit))
+			if onesCount == 0 {
+				continue
+			}
+			elementsToAdd := make([]T, 0, onesCount)
+
+			mask := StorageType(1 << 0)                                     //This will be used to check set bits. Numbers will be reconstructed only for set bits
+			firstStorageUnitValue := T(j*StorageTypeBits) | bucketIndexBits //StorageUnitIndex = noBucketBitsX / StorageTypeBits. So: noBucketBitsX = StorageUnitIndex * StorageTypeBits; Then: x = noBucketBitsX | bucketIndexBits
+
+			for k := T(0); onesCount > 0 && k < StorageTypeBits; k++ {
+
+				if storageUnit&mask > 0 {
+					elementsToAdd = append(elementsToAdd, firstStorageUnitValue+k)
+					onesCount--
 				}
 
 				mask <<= 1
 			}
 
+			elements = append(elements, elementsToAdd...)
 		}
 	}
 
-	return outSet
+	return elements
 }
 
 func (n *NSet[T]) IsEq(otherSet *NSet[T]) bool {
