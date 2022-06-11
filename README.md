@@ -138,14 +138,21 @@ Here NSet finishes in `0.1ms` but Map takes almost a second with `813ms`.
 ![Benchmarking IsEq with 10,000,000 elements](./.res/bench-is-equal-10-million.png)
 
 Next we have `GetAllElements`, which simply returns an array of all the elements of NSet/Map (note this is dangerous in NSet. See [Memory characteristics](#memory-characteristics)).
-![Benchmarking GetAllElements with 1,000,000 elements](.res/bench-getAllElements-1-million.png)
+![Benchmarking GetAllElements with 10,000,000 elements](.res/bench-getAllElements-10-million.png)
 
-With `GetAllElements` NSet is faster when its elements are closer together (or you have many numbers), but gets a lot slower when
-dealing with a few random numbers. This is because you might get two numbers like `1` and `1_000_000` which NSet
+With `GetAllElements` NSet is faster when its elements are closer together value wise (or if you have many numbers), but gets a lot slower when
+dealing with a few random numbers with a big difference between them. This is because you might get two numbers like `1` and `1_000_000` which NSet
 will store in two far away places with a lot of nothing in between. In a map these will be stored close together.
 
-With 1M ordered elements NSet takes `~2ms` and map `~9ms`, but with a random 1M elements NSet takes `~129ms`
-while map takes `~9ms`. Map scales with the amount of elements, while NSet is affected by number distribution as well.
+With 10M ordered elements NSet takes `~31ms` and map `~97ms`, but with a random 10M elements NSet takes `~525ms`
+while map takes `~95ms`. Map scales with the amount of elements, while NSet is affected by number distribution as well.
+
+Similar to getting elements is intersection:
+
+![Benchmarking GetIntersection with 10,000,000 elements](.res/bench-getIntersection-10-million.png)
+
+Here NSet is always many times faster, but the effect of number distribution on NSet's performance is clear, while map's performance
+only scales with number of elements.
 
 ## How NSet works
 

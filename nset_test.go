@@ -447,6 +447,8 @@ func BenchmarkMapIsEq(b *testing.B) {
 	}
 }
 
+var getIntersectionNset *nset.NSet[uint32]
+
 func BenchmarkNSetGetIntersection(b *testing.B) {
 
 	b.StopTimer()
@@ -459,7 +461,93 @@ func BenchmarkNSetGetIntersection(b *testing.B) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		s1.GetIntersection(s2)
+		getIntersectionNset = s1.GetIntersection(s2)
+	}
+}
+
+var getIntersectionTempMap map[uint32]struct{}
+
+func BenchmarkMapGetIntersection(b *testing.B) {
+
+	b.StopTimer()
+	m1 := map[uint32]struct{}{}
+	m2 := map[uint32]struct{}{}
+	for i := uint32(0); i < maxBenchSize; i++ {
+		m1[i] = struct{}{}
+		m2[i] = struct{}{}
+	}
+	b.StartTimer()
+
+	getIntersection := func(m1, m2 map[uint32]struct{}) map[uint32]struct{} {
+
+		outMap := map[uint32]struct{}{}
+
+		for k := range m1 {
+			if _, ok := m2[k]; ok {
+				outMap[k] = struct{}{}
+			}
+		}
+
+		return outMap
+	}
+
+	for i := 0; i < b.N; i++ {
+		getIntersectionTempMap = getIntersection(m1, m2)
+	}
+}
+
+func BenchmarkNSetGetIntersectionRand(b *testing.B) {
+
+	b.StopTimer()
+
+	rand.Seed(RandSeed)
+
+	s1 := nset.NewNSet[uint32]()
+	s2 := nset.NewNSet[uint32]()
+	for i := uint32(0); i < maxBenchSize; i++ {
+
+		r := rand.Uint32()
+		s1.Add(r)
+		s2.Add(r)
+	}
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		getIntersectionNset = s1.GetIntersection(s2)
+	}
+}
+
+func BenchmarkMapGetIntersectionRand(b *testing.B) {
+
+	b.StopTimer()
+
+	rand.Seed(RandSeed)
+
+	m1 := map[uint32]struct{}{}
+	m2 := map[uint32]struct{}{}
+	for i := uint32(0); i < maxBenchSize; i++ {
+
+		r := rand.Uint32()
+		m1[r] = struct{}{}
+		m2[r] = struct{}{}
+	}
+	b.StartTimer()
+
+	getIntersection := func(m1, m2 map[uint32]struct{}) map[uint32]struct{} {
+
+		outMap := map[uint32]struct{}{}
+
+		for k := range m1 {
+			if _, ok := m2[k]; ok {
+				outMap[k] = struct{}{}
+			}
+		}
+
+		return outMap
+	}
+
+	for i := 0; i < b.N; i++ {
+		getIntersectionTempMap = getIntersection(m1, m2)
 	}
 }
 
@@ -470,7 +558,7 @@ func BenchmarkNSetGetAllElements(b *testing.B) {
 	b.StopTimer()
 
 	s1 := nset.NewNSet[uint32]()
-	for i := uint32(0); i < 1000_000; i++ {
+	for i := uint32(0); i < 10_000_000; i++ {
 		s1.Add(i)
 	}
 	b.StartTimer()
@@ -488,7 +576,7 @@ func BenchmarkMapGetAllElements(b *testing.B) {
 	b.StopTimer()
 
 	m1 := map[uint32]struct{}{}
-	for i := uint32(0); i < 1000_000; i++ {
+	for i := uint32(0); i < 10_000_000; i++ {
 		m1[i] = struct{}{}
 	}
 	b.StartTimer()
@@ -517,7 +605,7 @@ func BenchmarkNSetGetAllElementsRand(b *testing.B) {
 
 	rand.Seed(RandSeed)
 	s1 := nset.NewNSet[uint32]()
-	for i := uint32(0); i < 1000_000; i++ {
+	for i := uint32(0); i < 10_000_000; i++ {
 		s1.Add(rand.Uint32())
 	}
 	b.StartTimer()
@@ -537,7 +625,7 @@ func BenchmarkMapGetAllElementsRand(b *testing.B) {
 	rand.Seed(RandSeed)
 
 	m1 := map[uint32]struct{}{}
-	for i := uint32(0); i < 1000_000; i++ {
+	for i := uint32(0); i < 10_000_000; i++ {
 		m1[rand.Uint32()] = struct{}{}
 	}
 
