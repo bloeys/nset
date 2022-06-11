@@ -27,9 +27,6 @@ func TestNSet(t *testing.T) {
 	n1.Add(63)
 	n1.Add(math.MaxUint32)
 
-	// 4294967295
-	// 4294967295
-
 	AllTrue(t, n1.Contains(0), n1.Contains(1), n1.Contains(63), n1.Contains(math.MaxUint32), !n1.Contains(10), !n1.Contains(599))
 	AllTrue(t, n1.ContainsAll(0, 1, 63), !n1.ContainsAll(9, 0, 1), !n1.ContainsAll(0, 1, 63, 99))
 	AllTrue(t, n1.ContainsAny(0, 1, 63), n1.ContainsAny(9, 99, 999, 1), !n1.ContainsAny(9, 99, 999))
@@ -59,6 +56,18 @@ func TestNSet(t *testing.T) {
 
 	n4n5 := n4.GetIntersection(n5)
 	AllTrue(t, n4n5.ContainsAll(0, 1, 64, math.MaxUint32), !n4n5.Contains(63))
+
+	//Union
+	n6 := nset.NewNSet[uint32]()
+	n6.AddMany(4, 7, 100, 1000)
+
+	n7 := nset.NewNSet[uint32]()
+	n7.AddMany(math.MaxUint32)
+	n7OldStorageUnitCount := n7.StorageUnitCount
+	n7.Union(n6)
+
+	AllTrue(t, n6.ContainsAll(4, 7, 100, 1000), !n6.Contains(math.MaxUint32), n7.ContainsAll(4, 7, 100, 1000, math.MaxUint32), n7.StorageUnitCount == n7OldStorageUnitCount+n6.StorageUnitCount)
+
 }
 
 func TestNSetFullRange(t *testing.T) {

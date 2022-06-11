@@ -140,6 +140,28 @@ func (n *NSet[T]) GetBitMask(x T) StorageType {
 	return 1 << (((x << BucketIndexingBits) >> BucketIndexingBits) % StorageTypeBits)
 }
 
+func (n *NSet[T]) Union(otherSet *NSet[T]) {
+
+	for i := 0; i < BucketCount; i++ {
+
+		b1 := &n.Buckets[i]
+		b2 := &otherSet.Buckets[i]
+
+		if b1.StorageUnitCount < b2.StorageUnitCount {
+
+			storageUnitsToAdd := b2.StorageUnitCount - b1.StorageUnitCount
+			b1.Data = append(b1.Data, make([]StorageType, storageUnitsToAdd)...)
+
+			b1.StorageUnitCount += storageUnitsToAdd
+			n.StorageUnitCount += storageUnitsToAdd
+		}
+
+		for j := 0; j < len(b1.Data) && j < len(b2.Data); j++ {
+			b1.Data[j] |= b2.Data[j]
+		}
+	}
+}
+
 func (n *NSet[T]) GetIntersection(otherSet *NSet[T]) *NSet[T] {
 
 	outSet := NewNSet[T]()
