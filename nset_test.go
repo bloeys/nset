@@ -75,6 +75,14 @@ func TestNSet(t *testing.T) {
 	unionedSet := nset.UnionSets(n6, n7)
 	AllTrue(t, !n6.Contains(math.MaxUint32), !n7.ContainsAny(4, 7, 100, 1000), unionedSet.ContainsAll(4, 7, 100, 1000, math.MaxUint32), unionedSet.StorageUnitCount == n6.StorageUnitCount+n7OldStorageUnitCount)
 
+	//Equality
+	AllTrue(t, !n6.IsEq(n7))
+
+	n7.Union(n6)
+	AllTrue(t, !n6.IsEq(n7))
+
+	n6.Union(n7)
+	AllTrue(t, n6.IsEq(n7))
 }
 
 func TestNSetFullRange(t *testing.T) {
@@ -378,5 +386,52 @@ func BenchmarkMapDeleteRand(b *testing.B) {
 
 		randVal := rand.Uint32()
 		delete(hMap, randVal)
+	}
+}
+
+func BenchmarkNSetIsEq(b *testing.B) {
+
+	b.StopTimer()
+	s1 := nset.NewNSet[uint32]()
+	s2 := nset.NewNSet[uint32]()
+	for i := uint32(0); i < maxBenchSize; i++ {
+		s1.Add(i)
+		s2.Add(i)
+	}
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		s1.IsEq(s2)
+	}
+}
+
+func BenchmarkMapIsEq(b *testing.B) {
+
+	b.StopTimer()
+	m1 := map[uint32]struct{}{}
+	m2 := map[uint32]struct{}{}
+	for i := uint32(0); i < maxBenchSize; i++ {
+		m1[i] = struct{}{}
+		m2[i] = struct{}{}
+	}
+	b.StartTimer()
+
+	mapsAreEq := func(m1, m2 map[uint32]struct{}) bool {
+
+		if len(m1) != len(m2) {
+			return false
+		}
+
+		for k := range m1 {
+			if _, ok := m2[k]; !ok {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	for i := 0; i < b.N; i++ {
+		mapsAreEq(m1, m2)
 	}
 }

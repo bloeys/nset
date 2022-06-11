@@ -75,10 +75,12 @@ if mySet.Contains(5) {
 
 mySet.Remove(4)
 
-// Intersections
 myOtherSet := nset.NewNSet[uint32]()
 myOtherSet.AddMany(0, 1, 2, 4, 14)
 
+println("Are the two sets equal:", myOtherSet.IsEq(mySet))  //False
+
+// Intersections
 println("There is intersection:", myOtherSet.HasIntersection(mySet))    //True
 
 intersection := mySet.GetIntersection(myOtherSet)
@@ -95,7 +97,7 @@ println(myOtherSet.ContainsAll(0, 1, 2, 4, 14, 256, 300))  //True
 
 ## Benchmarks
 
-NSet is faster than the built-in Go hash map in all operations (add, check, delete) by `~50% to ~3900%` depending on the operation and data size.
+NSet is faster than the built-in Go hash map in all operations (add, check, delete) by `~50% to ~3900%` (and even `8130x` checking equality) depending on the operation and data size.
 
 In the benchmarks below, ones that have 'Rand' in the name mean that access patterns are randomized to test certain use cases.
 To make sure the test is fair the seed is the same for both Go Map and NSet. Here both suffer slowdowns but NSet remains faster.
@@ -129,6 +131,12 @@ myMap := make(map[uint16], 100)
 ```
 
 Map benefits from sizing while NSet isn't affected, but in both cases NSet remains faster.
+
+Another case where NSet really shines is checking if two sets are equal.
+Below is a benchmark that checks whether two NSets/maps with 10 Million elements in each are equal (They are equal, which is the worst case).
+![Benchmarking IsEq with 10,000,000 elements](./.res/bench-is-equal-10-million.png)
+
+Here NSet finishes in `0.1ms` but Map takes almost a second with `813ms`.
 
 ## How NSet works
 

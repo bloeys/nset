@@ -199,6 +199,35 @@ func (n *NSet[T]) GetIntersection(otherSet *NSet[T]) *NSet[T] {
 	return outSet
 }
 
+func (n *NSet[T]) IsEq(otherSet *NSet[T]) bool {
+
+	if n.StorageUnitCount != otherSet.StorageUnitCount {
+		return false
+	}
+
+	//Equal storage unit count doesn't mean all buckets have same size, so we check per bucket
+	for i := 0; i < len(n.Buckets); i++ {
+		if n.Buckets[i].StorageUnitCount != otherSet.Buckets[i].StorageUnitCount {
+			return false
+		}
+	}
+
+	for i := 0; i < len(n.Buckets); i++ {
+
+		b1 := &n.Buckets[i]
+		b2 := &otherSet.Buckets[i]
+
+		for j := 0; j < len(b1.Data); j++ {
+
+			if b1.Data[j] != b2.Data[j] {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 func (n *NSet[T]) HasIntersection(otherSet *NSet[T]) bool {
 
 	for i := 0; i < len(n.Buckets); i++ {
