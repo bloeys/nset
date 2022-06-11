@@ -70,7 +70,7 @@ func TestNSet(t *testing.T) {
 }
 
 func TestNSetFullRange(t *testing.T) {
-	return
+
 	if fullRangeNSet == nil {
 
 		fullRangeNSet = nset.NewNSet[uint32]()
@@ -78,7 +78,7 @@ func TestNSetFullRange(t *testing.T) {
 		for i := uint32(0); i < math.MaxUint32; i++ {
 			fullRangeNSet.Add(i)
 			if i%1_000_000_000 == 0 {
-				fmt.Printf("i=%d billion\n", i)
+				fmt.Printf("i=%d billion\n", i/1_000_000_000)
 			}
 		}
 		fullRangeNSet.Add(math.MaxUint32)
