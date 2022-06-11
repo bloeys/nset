@@ -67,7 +67,6 @@ func TestNSet(t *testing.T) {
 	n7.Union(n6)
 
 	AllTrue(t, n6.ContainsAll(4, 7, 100, 1000), !n6.Contains(math.MaxUint32), n7.ContainsAll(4, 7, 100, 1000, math.MaxUint32), n7.StorageUnitCount == n7OldStorageUnitCount+n6.StorageUnitCount)
-
 }
 
 func TestNSetFullRange(t *testing.T) {
