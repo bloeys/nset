@@ -12,6 +12,10 @@ get intersections.
   - [When to use NSet](#when-to-use-nset)
   - [Usage](#usage)
   - [Benchmarks](#benchmarks)
+    - [Equality](#equality)
+    - [Extracting elements](#extracting-elements)
+    - [Intersection](#intersection)
+    - [Union](#union)
   - [How NSet works](#how-nset-works)
     - [Memory characteristics](#memory-characteristics)
 
@@ -132,6 +136,8 @@ myMap := make(map[uint16], 100)
 
 Map benefits from sizing while NSet isn't affected, but in both cases NSet remains faster.
 
+### Equality
+
 Another case where NSet really shines is checking if two sets are equal.
 Below is a benchmark that checks whether two NSets/maps with 10 Million elements in each are equal (They are equal, which is the worst case).
 Here NSet finishes in `0.1ms` but Map takes almost a second with `813ms`.
@@ -139,6 +145,8 @@ Here NSet finishes in `0.1ms` but Map takes almost a second with `813ms`.
 
 Next we have `GetAllElements`, which simply returns an array of all the elements of NSet/Map (note this is dangerous in NSet. See [Memory characteristics](#memory-characteristics)).
 ![Benchmarking GetAllElements with 10,000,000 elements](.res/bench-getAllElements-10-million.png)
+
+### Extracting elements
 
 With `GetAllElements` NSet is faster when its elements are closer together value wise (or if you have many numbers), but gets a lot slower when
 dealing with a few random numbers with a big difference between them. This is because you might get two numbers like `1` and `1_000_000` which NSet
@@ -149,10 +157,19 @@ while map takes `~95ms`. Map scales with the amount of elements, while NSet is a
 
 Similar to getting elements is intersection:
 
-![Benchmarking GetIntersection with 10,000,000 elements](.res/bench-getIntersection-10-million.png)
+### Intersection
+
+![Benchmarking GetIntersection with 10,000,000 elements](./.res/bench-getIntersection-10-million.png)
 
 Here NSet is always many times faster, but the effect of number distribution on NSet's performance is clear, while map's performance
 only scales with number of elements.
+
+### Union
+
+![Benchmarking GetUnion with 10,000,000 elements](./.res/bench-union-10-million.png)
+
+With unions NSet is a clear winner in all cases where for 10M elements NSet takes between `~0.37ms` and `~180ms`, while
+map takes `~1959ms`, around 10x slower.
 
 ## How NSet works
 

@@ -558,7 +558,7 @@ func BenchmarkNSetGetAllElements(b *testing.B) {
 	b.StopTimer()
 
 	s1 := nset.NewNSet[uint32]()
-	for i := uint32(0); i < 10_000_000; i++ {
+	for i := uint32(0); i < maxBenchSize; i++ {
 		s1.Add(i)
 	}
 	b.StartTimer()
@@ -576,7 +576,7 @@ func BenchmarkMapGetAllElements(b *testing.B) {
 	b.StopTimer()
 
 	m1 := map[uint32]struct{}{}
-	for i := uint32(0); i < 10_000_000; i++ {
+	for i := uint32(0); i < maxBenchSize; i++ {
 		m1[i] = struct{}{}
 	}
 	b.StartTimer()
@@ -605,7 +605,7 @@ func BenchmarkNSetGetAllElementsRand(b *testing.B) {
 
 	rand.Seed(RandSeed)
 	s1 := nset.NewNSet[uint32]()
-	for i := uint32(0); i < 10_000_000; i++ {
+	for i := uint32(0); i < maxBenchSize; i++ {
 		s1.Add(rand.Uint32())
 	}
 	b.StartTimer()
@@ -625,7 +625,7 @@ func BenchmarkMapGetAllElementsRand(b *testing.B) {
 	rand.Seed(RandSeed)
 
 	m1 := map[uint32]struct{}{}
-	for i := uint32(0); i < 10_000_000; i++ {
+	for i := uint32(0); i < maxBenchSize; i++ {
 		m1[rand.Uint32()] = struct{}{}
 	}
 
@@ -646,4 +646,120 @@ func BenchmarkMapGetAllElementsRand(b *testing.B) {
 	}
 
 	elementCount = len(elements)
+}
+
+var unionSize int
+
+func BenchmarkNSetUnion(b *testing.B) {
+
+	b.StopTimer()
+
+	s1 := nset.NewNSet[uint32]()
+	s2 := nset.NewNSet[uint32]()
+	for i := uint32(0); i < maxBenchSize; i++ {
+		s1.Add(i)
+		s2.Add(i)
+	}
+	b.StartTimer()
+
+	var union *nset.NSet[uint32]
+	for i := 0; i < b.N; i++ {
+		union = nset.UnionSets(s1, s2)
+	}
+
+	unionSize = int(union.StorageUnitCount)
+}
+
+func BenchmarkMapUnion(b *testing.B) {
+
+	b.StopTimer()
+
+	m1 := map[uint32]struct{}{}
+	m2 := map[uint32]struct{}{}
+	for i := uint32(0); i < maxBenchSize; i++ {
+		m1[i] = struct{}{}
+		m2[i] = struct{}{}
+	}
+	b.StartTimer()
+
+	unionFunc := func(m1, m2 map[uint32]struct{}) map[uint32]struct{} {
+
+		u := make(map[uint32]struct{}, len(m1))
+		for k := range m1 {
+			u[k] = struct{}{}
+		}
+
+		for k := range m2 {
+			u[k] = struct{}{}
+		}
+
+		return u
+	}
+
+	var union map[uint32]struct{}
+	for i := 0; i < b.N; i++ {
+		union = unionFunc(m1, m2)
+	}
+
+	unionSize = len(union)
+}
+
+func BenchmarkNSetUnionRand(b *testing.B) {
+
+	b.StopTimer()
+
+	rand.Seed(RandSeed)
+
+	s1 := nset.NewNSet[uint32]()
+	s2 := nset.NewNSet[uint32]()
+	for i := uint32(0); i < maxBenchSize; i++ {
+		r := rand.Uint32()
+		s1.Add(r)
+		s2.Add(r)
+	}
+	b.StartTimer()
+
+	var union *nset.NSet[uint32]
+	for i := 0; i < b.N; i++ {
+		union = nset.UnionSets(s1, s2)
+	}
+
+	unionSize = int(union.StorageUnitCount)
+}
+
+func BenchmarkMapUnionRand(b *testing.B) {
+
+	b.StopTimer()
+
+	rand.Seed(RandSeed)
+
+	m1 := map[uint32]struct{}{}
+	m2 := map[uint32]struct{}{}
+	for i := uint32(0); i < maxBenchSize; i++ {
+		r := rand.Uint32()
+		m1[r] = struct{}{}
+		m2[r] = struct{}{}
+	}
+	b.StartTimer()
+
+	unionFunc := func(m1, m2 map[uint32]struct{}) map[uint32]struct{} {
+
+		u := make(map[uint32]struct{}, len(m1))
+		for k := range m1 {
+			u[k] = struct{}{}
+		}
+
+		for k := range m2 {
+			u[k] = struct{}{}
+		}
+
+		return u
+	}
+
+	var union map[uint32]struct{}
+	for i := 0; i < b.N; i++ {
+		union = unionFunc(m1, m2)
+	}
+
+	unionSize = len(union)
 }
