@@ -267,6 +267,39 @@ func (n *NSet[T]) Copy() *NSet[T] {
 
 }
 
+func UnionSets[T IntsIf](set1, set2 *NSet[T]) *NSet[T] {
+
+	newSet := NewNSet[T]()
+	for i := 0; i < BucketCount; i++ {
+
+		b1 := &set1.Buckets[i]
+		b2 := &set2.Buckets[i]
+
+		//Size bucket
+		bucketSize := b1.StorageUnitCount
+		if b2.StorageUnitCount > bucketSize {
+			bucketSize = b2.StorageUnitCount
+		}
+
+		newB := &newSet.Buckets[i]
+		newB.Data = make([]StorageType, bucketSize)
+
+		newB.StorageUnitCount = bucketSize
+		newSet.StorageUnitCount += bucketSize
+
+		//Union fields of both sets on the new set
+		for j := 0; j < len(b1.Data); j++ {
+			newB.Data[j] |= b1.Data[j]
+		}
+
+		for j := 0; j < len(b2.Data); j++ {
+			newB.Data[j] |= b2.Data[j]
+		}
+	}
+
+	return newSet
+}
+
 func NewNSet[T IntsIf]() *NSet[T] {
 
 	n := &NSet[T]{
