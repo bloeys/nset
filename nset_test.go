@@ -447,6 +447,112 @@ func BenchmarkMapIsEq(b *testing.B) {
 	}
 }
 
+func BenchmarkNSetIsEqRand(b *testing.B) {
+
+	b.StopTimer()
+
+	rand.Seed(RandSeed)
+	s1 := nset.NewNSet[uint32]()
+	s2 := nset.NewNSet[uint32]()
+	for i := uint32(0); i < maxBenchSize; i++ {
+		r := rand.Uint32()
+		s1.Add(r)
+		s2.Add(r)
+	}
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		s1.IsEq(s2)
+	}
+}
+
+func BenchmarkMapIsEqRand(b *testing.B) {
+
+	b.StopTimer()
+
+	rand.Seed(RandSeed)
+	m1 := map[uint32]struct{}{}
+	m2 := map[uint32]struct{}{}
+	for i := uint32(0); i < maxBenchSize; i++ {
+		r := rand.Uint32()
+		m1[r] = struct{}{}
+		m2[r] = struct{}{}
+	}
+	b.StartTimer()
+
+	mapsAreEq := func(m1, m2 map[uint32]struct{}) bool {
+
+		if len(m1) != len(m2) {
+			return false
+		}
+
+		for k := range m1 {
+			if _, ok := m2[k]; !ok {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	for i := 0; i < b.N; i++ {
+		mapsAreEq(m1, m2)
+	}
+}
+
+func BenchmarkNSetIsEqRand100Mil(b *testing.B) {
+
+	b.StopTimer()
+
+	rand.Seed(RandSeed)
+	s1 := nset.NewNSet[uint32]()
+	s2 := nset.NewNSet[uint32]()
+	for i := uint32(0); i < 100_000_000; i++ {
+		r := rand.Uint32()
+		s1.Add(r)
+		s2.Add(r)
+	}
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		s1.IsEq(s2)
+	}
+}
+
+func BenchmarkMapIsEqRand100Mil(b *testing.B) {
+
+	b.StopTimer()
+
+	rand.Seed(RandSeed)
+	m1 := map[uint32]struct{}{}
+	m2 := map[uint32]struct{}{}
+	for i := uint32(0); i < 100_000_000; i++ {
+		r := rand.Uint32()
+		m1[r] = struct{}{}
+		m2[r] = struct{}{}
+	}
+	b.StartTimer()
+
+	mapsAreEq := func(m1, m2 map[uint32]struct{}) bool {
+
+		if len(m1) != len(m2) {
+			return false
+		}
+
+		for k := range m1 {
+			if _, ok := m2[k]; !ok {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	for i := 0; i < b.N; i++ {
+		mapsAreEq(m1, m2)
+	}
+}
+
 var getIntersectionNset *nset.NSet[uint32]
 
 func BenchmarkNSetGetIntersection(b *testing.B) {

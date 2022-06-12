@@ -140,8 +140,9 @@ Map benefits from sizing while NSet isn't affected, but in both cases NSet remai
 
 Another case where NSet really shines is checking if two sets are equal.
 Below is a benchmark that checks whether two NSets/maps with 10 Million elements in each are equal (They are equal, which is the worst case).
-Here NSet finishes in `0.1ms` but Map takes almost a second with `813ms`.
-![Benchmarking IsEq with 10,000,000 elements](./.res/bench-is-equal-10-million.png)
+Here NSet finishes in `0.1ms` but Map takes almost a second with `813ms`. With a few large numbers NSet suffers a bit but then its performance remains or even improves with more elements, while map degrades greatly.
+
+![Benchmarking IsEq with 10 and 100 million elements](./.res/bench-is-equal-10-100-mil.png)
 
 Next we have `GetAllElements`, which simply returns an array of all the elements of NSet/Map (note this is dangerous in NSet. See [Memory characteristics](#memory-characteristics)).
 ![Benchmarking GetAllElements with 10,000,000 elements](.res/bench-getAllElements-10-million.png)
