@@ -6,6 +6,9 @@ By 'set' we mean something like a hash map, but instead of key/value pairs there
 You can do the normal operations of add, check if item exists, and delete, but you can also do things like union sets and
 get intersections.
 
+NSet is generally faster than the built-in Go `map` by ~50% to ~3900%, and even more in certain cases. Not only is NSet faster,
+but it can store *all* 4 billion uint32 values using only `512MB`, while a map needs `16GB`, meaning NSet uses almost `97%` *less* memory.
+
 **Contents**:
 
 - [NSet](#nset)
@@ -101,9 +104,9 @@ println(myOtherSet.ContainsAll(0, 1, 2, 4, 14, 256, 300))  //True
 
 ## Benchmarks
 
-NSet is faster than the built-in Go hash map in all operations (add, check, delete) by `~50% to ~3900%` (and even `8130x` checking equality) depending on the operation and data size.
+NSet is generally faster than the built-in Go hash map by `~50% to ~3900%` (and even `8130x` checking equality) depending on the operation and data size.
 
-In the benchmarks below, ones that have 'Rand' in the name mean that access patterns are randomized to test certain use cases.
+In the benchmarks below, ones that have 'Rand' in the name mean that access patterns are randomized to test worst case scenarios.
 To make sure the test is fair the seed is the same for both Go Map and NSet. Here both suffer slowdowns but NSet remains faster.
 
 Adding all uint32 to the map would eat tons of RAM, so we limit both NSet and Map to 10 Million values (0->10M). But because
@@ -174,19 +177,20 @@ map takes `~1959ms`, around 10x slower.
 
 ## How NSet works
 
-NSet works by using a single bit to indicate whether a number exists or not.
-These bit flags are stored as an array of uint64, where the `0` uses the first bit of the first uint64,
-`1` uses the second bit of the first uint64 in the array and so on. So each uint64 represents 64 numbers.
+NSet works by using a single bit to indicate whether a number exists or not, and these bit flags are stored as an array of uint64.
+
+For example, the number `0` will use the first bit of the first uint64,
+`1` uses the second bit of the first uint64 in the array and so on. As such, each uint64 represents 64 numbers.
 
 Now assume we have added the numbers `1`, `2` and `3`, then we add number `65`. The first 3 numbers fit in the first uint64 integer of the array, but `65` doesn't
-so at this point the array is expanded until we have enough 65 bits or more, so 1 more integer is added and the second bit of the second integer is set.
+so at this point the array is expanded until we have 65 bits or more, so 1 more integer is added and the second bit of the second integer is set.
 
 ### Memory characteristics
 
 This setup gives us very high add/get/remove efficiency, but in some cases can produce worse memory usage. For example, if you make an empty set
 then add the number `5000` NSet will be forced to create 78 integers and then set one bit on the last integer. So if you have a few huge numbers (a number in the millions or billions) then you will be using more memory than a hash map or an array.
 
-But if your numbers are smaller and/or closer together then you will have **a lot better** memory efficiency. A normal array storing all
+But if your numbers are smaller and/or closer together then you will have *a much better* memory efficiency. A normal array storing all
 4 billion uint32 integers will use `16 GB` of memory, while NSet can store all 4 billion integers with only use `512 MB`.
 
 To improve the worst case scenario, which happens when someone just adds the number $2^{32}$ and nothing else (which uses 512 MB), NSet
@@ -195,7 +199,7 @@ is split into 128 `buckets`, where each bucket can represent a maximum of $2^{25
 The upper 7 bits of a value are used to select a bucket, then the number is placed in a position in that bucket depending on its value
 and excluding the bits used by the bucket.
 
-With this the worst case (e.g. adding MaxUint32) will only increase usage by **up to** `16 MB`.
+With this the worst case (e.g. adding MaxUint32) will only increase usage by *up to* `16 MB`.
 
 > tldr: NSet will use a max of 512 MB when storing all uint32 (as opposed to 16GB if you used an array/map), but it might reach this max before
 > adding all uint32 numbers.
